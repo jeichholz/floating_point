@@ -25,10 +25,12 @@ classdef floating_point
     end
     
     methods
-        function obj=floating_point(x,base,num_digits,min_exp,max_exp)
-            if nargin==0
+        function obj=floating_point(base,num_digits,min_exp,max_exp,x)
+
+            if ~exist('x','var') || isempty(x)
                 x=0;
             end
+            
             if ~exist('base','var') || isempty(base)
                 obj.base=sym(10);
             else
@@ -50,9 +52,6 @@ classdef floating_point
                 obj.max_exp=sym(max_exp);
             end
             
-            if isempty(x)
-                x=0;
-            end
                 
             
             %If x is a string that represents a number in decimal form,
@@ -159,7 +158,7 @@ classdef floating_point
             for i=1:size(A,1)
                 for j=1:size(A,2)
                     [a,b]=coerce_operands(A(i,j),B(i,j),'+');
-                    obj(i,j)=floating_point(a.value+b.value,a.base,b.num_digits);
+                    obj(i,j)=floating_point(a.base,a.num_digits,a.min_exp,a.max_exp,a.value+b.value);
                 end
             end
         end
@@ -173,7 +172,7 @@ classdef floating_point
             for i=1:size(A,1)
                 for j=1:size(A,2)
                    [a,b]=coerce_operands(A(i,j),B(i,j),'-');
-                    obj(i,j)=floating_point(a.value-b.value,a.base,a.num_digits);
+                    obj(i,j)=floating_point(a.base,a.num_digits,a.min_exp,a.max_exp,a.value-b.value);
                 end
             end
         end
@@ -194,7 +193,7 @@ classdef floating_point
                 for i=1:size(B,1)
                     for j=1:size(B,2)
                         [a,b]=coerce_operands(A,B(i,j),'*');
-                        obj(i,j)=floating_point(a.value*b.value,a.base,a.num_digits);
+                        obj(i,j)=floating_point(a.base,a.num_digits,a.min_exp,a.max_exp,a.value*b.value);
                     end
                 end
             else
@@ -209,7 +208,7 @@ classdef floating_point
                        %Super slow, but super convenient. 
                        obj(i,j)=A(i,1)*B(1,j);
                        for k=2:size(A,2)
-                           obj(i,j)=obj(i,j)+A(i,k)*A(k,j);
+                           obj(i,j)=obj(i,j)+A(i,k)*B(k,j);
                        end
                    end
                end
@@ -220,9 +219,17 @@ classdef floating_point
         
         %Matrix power
         function obj=mpower(A,p)
-            fprintf(2,'Stub\n');
-            return;
-            obj=floating_point(A.value^p,A.base);
+            if size(A,1) ~= size(A,2)
+                fprintf(2,'Matrix power is only defined for square matrices\n');
+                return;
+            end
+            if size(A,1)==1
+                obj=floating_point(A.base,A.num_digits,A.min_exp,A.max_exp,A.value^p);
+            else
+                for i=1:p
+                    A=A*A;
+                end
+            end
         end
         
         %Unary minus
@@ -283,19 +290,30 @@ classdef floating_point
         %is +.  
         function [A,B]=coerce_operands(A,B,symbol)
             if ~isa(A,'floating_point')
-                A=floating_point(A,B.base,B.num_digits);
+                A=floating_point(B.base,B.num_digits,B.min_exp,B.max_exp,A);
             end
             if ~isa(B,'floating_point')
-                B=floating_point(B,A.base,A.num_digits);
+                B=floating_point(A.base,A.num_digits,A.min_exp,A.max_exp,B);
             end
             if A.base~=B.base
                 fprintf(2,['The left hand operatand to ' symbol ' has base %d, while the rand hand operand has base %d. These must match.\n'],A.base,B.base);
                 return;
             end
             if A.num_digits ~= B.num_digits
-                fprintf(2,'The left hand operatand to * has %d significant digits, while the right hand operand has %d significant digits.  These must match\n',A.num_digits,B.num_digits);
+                fprintf(2,['The left hand operatand to ' symbol ' has %d significant digits, while the right hand operand has %d significant digits.  These must match\n'],A.num_digits,B.num_digits);
                 return;
             end
+            
+            if A.min_exp ~= B.min_exp
+                fprintf(2,['The left hand operatand to ' symbol ' has minimum exponent %d, while the right hand operand has minimum exponent %d.  These must match\n'],A.min_exp,B.min_exp);
+                return;
+            end
+            
+            if A.num_digits ~= B.num_digits
+                fprintf(2,['The left hand operatand to ' symbol ' has maximum exponent %d, while the right hand operand has maximum exponent %d  These must match\n'],A.max_exp,B.max_exp);
+                return;
+            end
+
 
         end
         
@@ -321,14 +339,13 @@ classdef floating_point
           end
           
           if isempty(obj)
-              if ~isa(b,'floating_point')
-                  b=floating_point(b);
-              end
+              fprintf(2,'I did not expect it was possible to have an empty floating point.\n');
+              return;
           else
               if ~isa(b,'floating_point')
-                  b=floating_point(b,obj(1,1).base,obj(1,1).num_digits,obj(1,1).min_exp,obj(1,1).max_exp);
+                  b=floating_point(obj(1,1).base,obj(1,1).num_digits,obj(1,1).min_exp,obj(1,1).max_exp,b);
               elseif b.value == 0
-                  b=floating_point(0,obj(1,1).base,obj(1,1).num_digits,obj(1,1).min_exp,obj(1,1).max_exp);
+                  b=floating_point(obj(1,1).base,obj(1,1).num_digits,obj(1,1).min_exp,obj(1,1).max_exp,0);
               else
                   if b.base ~= obj(1,1).base || b.num_digits ~= obj(1,1).num_digits || b.min_exp ~= obj(1,1).min_exp || b.max_exp ~= obj(1,1).max_exp
                       fprintf(2,'You may not store numbers of multiple types in one matrix\n');
@@ -340,11 +357,18 @@ classdef floating_point
           %At this point either b matches obj(1,1) in type, or obj is
           %empty.  Either way, b has the right type.  Fill in
           OBJ=obj;
-          for i=size(OBJ,1)+1:r
-              for j=size(OBJ,2)+1:c
-                  OBJ(i,j)=floating_point(2,b.base,b.num_digits,b.min_exp,b.max_exp);
+          oldOBJsize=size(OBJ);
+          for i=oldOBJsize(1)+1:r
+              for j=1:c
+                  OBJ(i,j)=floating_point(b.base,b.num_digits,b.min_exp,b.max_exp,0);
               end
           end
+          for j=oldOBJsize(2)+1:c
+              for i=1:r
+                  OBJ(i,j)=floating_point(b.base,b.num_digits,b.min_exp,b.max_exp,0);
+              end
+          end
+
           OBJ(r,c)=b;
           
                       
