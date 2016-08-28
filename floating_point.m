@@ -226,8 +226,30 @@ classdef floating_point
             if size(A,1)==1
                 obj=floating_point(A.base,A.num_digits,A.min_exp,A.max_exp,A.value^p);
             else
-                for i=1:p
-                    A=A*A;
+                if mod(p,1)~=0 || p < 0
+                    fprintf(2,'Matrix power for floating_point matrices is only defined for positive integer powers.\n');
+                    return;
+                end
+                if p==0
+                    obj=A;
+                    for i= 1:size(A,1)
+                        for j=1:size(A,2)
+                            if i==j
+                                val=1;
+                            else
+                                val=0;
+                            end
+                            obj(i,j)=floating_point(A(1,1).base,A(1,1).num_digits,A(1,1).min_exp,A(1,1).max_exp,val);
+                        end
+                    end
+                
+                elseif p==1
+                    obj=A;
+                else
+                    obj=A;
+                    for i=2:p
+                        obj=obj*A;
+                    end
                 end
             end
         end
