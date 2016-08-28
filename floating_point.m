@@ -19,40 +19,37 @@ classdef floating_point
         exponent=0;
         min_exp=-5;
         max_exp=5;
-        digits=-1;
         value=sym(-Inf);
         sign=0;
     end
     
     methods
         function obj=floating_point(base,num_digits,min_exp,max_exp,x)
-
+            
+            if ~exist('base','var') || isempty(base)
+                base=sym(10);
+            else
+                base=sym(base);
+            end
+            if ~exist('num_digits','var') || isempty(num_digits)
+                num_digits=5;
+            end
+            if ~exist('min_exp','var') || isempty(min_exp)
+                min_exp=sym(-5);
+            else
+                min_exp=sym(min_exp);
+            end
+            if ~exist('max_exp','var') || isempty(max_exp)
+                max_exp=sym(5);
+            else
+                max_exp=sym(max_exp);
+            end
+            
+            
             if ~exist('x','var') || isempty(x)
                 x=0;
             end
             
-            if ~exist('base','var') || isempty(base)
-                obj.base=sym(10);
-            else
-                obj.base=sym(base);
-            end
-            if ~exist('num_digits','var') || isempty(num_digits)
-                obj.num_digits=5;
-            else
-                obj.num_digits=num_digits;
-            end
-            if ~exist('min_exp','var') || isempty(min_exp)
-                obj.min_exp=sym(-5);
-            else
-                obj.min_exp=sym(min_exp);
-            end
-            if ~exist('max_exp','var') || isempty(max_exp)
-                obj.max_exp=sym(5);
-            else
-                obj.max_exp=sym(max_exp);
-            end
-            
-                
             
             %If x is a string that represents a number in decimal form,
             %convert it to rational form.  Gets much better results out of
@@ -65,62 +62,61 @@ classdef floating_point
             else
                 x=sym(x);
             end
-            if x==0
-                obj.digits=zeros(1,obj.num_digits);
-                obj.sign=1;
-                obj.exponent=obj.min_exp;
-                obj.value=sym(0);
+            
+            for i=1:size(x,1)
+                for j=1:size(x,2)
+                    obj(i,j).base=base;
+                    obj(i,j).num_digits=num_digits;
+                    obj(i,j).min_exp=min_exp;
+                    obj(i,j).max_exp=max_exp;
+                    if x(i,j)==0
+                        obj(i,j).sign=1;
+                        obj(i,j).exponent=obj(i,j).min_exp;
+                        obj(i,j).value=sym(0);
+                    else
+                        if x(i,j)>0
+                            obj(i,j).sign=1;
+                        else
+                            obj(i,j).sign=-1;
+                            x(i,j)=-x(i,j);
+                        end
+                        obj(i,j).exponent=floor(log(x(i,j))/log(obj(i,j).base));
+                        sme=obj(i,j).exponent-obj(i,j).num_digits+1;
+                        
+                        %Round here
+                        if (abs(x(i,j)-floor(x(i,j)/obj(i,j).base^sme)*obj(i,j).base^sme)>abs(x(i,j)-ceil(x(i,j)/obj(i,j).base^sme)*obj(i,j).base^sme))
+                            x(i,j)=x(i,j)+obj(i,j).base^sme;
+                        end
+                        %You rounded, re-evaluate the exponent
+                        obj(i,j).exponent=floor(log(x(i,j))/log(obj(i,j).base));
+                        sme=obj(i,j).exponent-obj(i,j).num_digits+1;                        
+                        obj(i,j).value=floor(x(i,j)/obj(i,j).base^sme)*obj(i,j).base^sme;                        
+                    end
+                end
+            end
+            
+        end
+%Get the digits of a floating_point number for printing.        
+        function dig=digits(obj)
+            if obj.value==0
+                dig=zeros(1,obj.num_digits);
             else
-                if x>0
-                    obj.sign=1;
-                else
-                    obj.sign=-1;
-                    x=-x;
-                end
-                obj.exponent=floor(log(x)/log(obj.base));
                 min_exp=obj.exponent-obj.num_digits+1;
                 
-                %Round here
-                if (abs(x-floor(x/obj.base^min_exp)*obj.base^min_exp)>abs(x-ceil(x/obj.base^min_exp)*obj.base^min_exp))
-                    x=x+obj.base^min_exp;
-                end
-                %You rounded, re-evaluate the exponent 
-                obj.exponent=floor(log(x)/log(obj.base));
-                min_exp=obj.exponent-obj.num_digits+1;
-                
-                obj.digits(1)=floor(x/obj.base^min_exp);
-                obj.value=floor(x/obj.base^min_exp)*obj.base^min_exp;
+                dig(1)=floor(obj.value/obj.base^min_exp);
                 for i=1:obj.num_digits
-                    if (obj.digits(i)>=obj.base)
-                        obj.digits(i+1)=floor(obj.digits(i)/obj.base);
-                        obj.digits(i)=rem(obj.digits(i),obj.base);
+                    if (dig(i)>=obj.base)
+                        dig(i+1)=floor(dig(i)/obj.base);
+                        dig(i)=rem(dig(i),obj.base);
                     end
                 end
                 
-                
-                
-                
-            end
-            %I like the digits to read from left to right. 
-            obj.digits=obj.digits(end:-1:1);
+                %I like the digits to read from left to right.
+                dig=dig(end:-1:1);
+        end
             
-         %   obj.value=compute_value(obj);
-         
-                
         end
         
-        %Get the exact (symbolic) value represented by the fp number. 
-        %This works ONLY on scalar floating_point numbers. 
-        function x=compute_value(obj)
-            x=sym(0);
-            for i=obj.exponent:-1:obj.exponent-obj.num_digits+1
-                x=x+obj.base^(i)*obj.digits(obj.exponent-i+1);
-            end
-            
-            x=x*obj.sign;
-            
-            
-        end
         
         %display a floating_point
         function disp(x)
