@@ -84,13 +84,28 @@ classdef floating_point
                         sme=obj(i,j).exponent-obj(i,j).num_digits+1;
                         
                         %Round here
-                        if (abs(x(i,j)-floor(x(i,j)/obj(i,j).base^sme)*obj(i,j).base^sme)>abs(x(i,j)-ceil(x(i,j)/obj(i,j).base^sme)*obj(i,j).base^sme))
+                        %if (abs(x(i,j)-floor(x(i,j)/obj(i,j).base^sme)*obj(i,j).base^sme)>abs(x(i,j)-ceil(x(i,j)/obj(i,j).base^sme)*obj(i,j).base^sme))
+                        if x(i,j)-floor(x(i,j)/obj(i,j).base^sme)*obj(i,j).base^sme>=1/2*obj(i,j).base^sme
                             x(i,j)=x(i,j)+obj(i,j).base^sme;
                         end
                         %You rounded, re-evaluate the exponent
                         obj(i,j).exponent=floor(log(x(i,j))/log(obj(i,j).base));
                         sme=obj(i,j).exponent-obj(i,j).num_digits+1;                        
-                        obj(i,j).value=floor(x(i,j)/obj(i,j).base^sme)*obj(i,j).base^sme;                        
+                        obj(i,j).value=floor(x(i,j)/obj(i,j).base^sme)*obj(i,j).base^sme;  
+                        
+                        %Overflow or underflow here
+                        if obj(i,j).exponent>obj(i,j).max_exp
+                            if obj(i,j).sign==1
+                                obj(i,j).value=Inf;
+                            else
+                                obj(i,j).value=-Inf;
+                            end
+                            obj(i,j).exponent=Inf;
+                        end
+                        if obj(i,j).exponent<obj(i,j).min_exp
+                            obj(i,j).exponent=obj(i,j).min_exp;
+                            obj(i,j).value=0;
+                        end
                     end
                 end
             end
@@ -100,6 +115,8 @@ classdef floating_point
         function dig=digits(obj)
             if obj.value==0
                 dig=zeros(1,obj.num_digits);
+            elseif  isinf(obj.value)
+                dig=Inf*ones(1,obj.num_digits);
             else
                 min_exp=obj.exponent-obj.num_digits+1;
                 
@@ -213,6 +230,73 @@ classdef floating_point
             
         end
         
+        %Perform B.\A.  Only supports B a scalar
+        function obj=ldivide(B,A)
+            if numel(B)>1
+                fprintf('Only division by scalars is supported for floating_points\n');
+            end
+            if ~isa(B,'floating_point')
+                B=floating_point(A(1,1).base,A(1,1).num_digits,A(1,1).min_exp,A(1,1).max_exp,B);
+            end
+            for i=1:size(A,1)
+                for j=1:size(A,2)
+                    [a,b]=coerce_operands(A(i,j),B,'\');
+                    obj(i,j)=floating_point(a.base,a.num_digits,a.min_exp,a.max_exp,a.value/b.value);
+                end
+            end
+        end
+        
+        %Perform B\A.  Only supports B a scalar
+        function obj=mldivide(B,A)
+            if numel(B)>1
+                fprintf('Only division by scalars is supported for floating_points\n');
+            end
+            if ~isa(B,'floating_point')
+                B=floating_point(A(1,1).base,A(1,1).num_digits,A(1,1).min_exp,A(1,1).max_exp,B);
+            end
+            for i=1:size(A,1)
+                for j=1:size(A,2)
+                    [a,b]=coerce_operands(A(i,j),B,'\');
+                    obj(i,j)=floating_point(a.base,a.num_digits,a.min_exp,a.max_exp,a.value/b.value);
+                end
+            end
+        end
+
+        
+        
+        %Perform A./B.  Only supports B a scalar
+        function obj=rdivide(A,B)
+            if numel(B)>1
+                fprintf('Only division by scalars is supported for floating_points\n');
+            end
+            if ~isa(B,'floating_point')
+                B=floating_point(A(1,1).base,A(1,1).num_digits,A(1,1).min_exp,A(1,1).max_exp,B);
+            end
+            for i=1:size(A,1)
+                for j=1:size(A,2)
+                    [a,b]=coerce_operands(A(i,j),B,'\');
+                    obj(i,j)=floating_point(a.base,a.num_digits,a.min_exp,a.max_exp,a.value/b.value);
+                end
+            end
+        end
+
+        %Perform A/B.  Only supports B a scalar
+        function obj=mrdivide(A,B)
+            if numel(B)>1
+                fprintf('Only division by scalars is supported for floating_points\n');
+            end
+            if ~isa(B,'floating_point')
+                B=floating_point(A(1,1).base,A(1,1).num_digits,A(1,1).min_exp,A(1,1).max_exp,B);
+            end
+            for i=1:size(A,1)
+                for j=1:size(A,2)
+                    [a,b]=coerce_operands(A(i,j),B,'\');
+                    obj(i,j)=floating_point(a.base,a.num_digits,a.min_exp,a.max_exp,a.value/b.value);
+                end
+            end
+        end
+
+        
         %Matrix power
         function obj=mpower(A,p)
             if size(A,1) ~= size(A,2)
@@ -293,7 +377,7 @@ classdef floating_point
             for i=1:size(obj,1)
                 for j=1:size(obj,2)
                     delta=obj(i,j).base^(obj(i,j).exponent-obj(i,j).num_digits+1);
-                    N(i,j)=obj(i,j)+delta;
+                    N(i,j)=floating_point(obj(i,j).base,obj(i,j).num_digits,obj(i,j).min_exp,obj(i,j).max_exp,obj(i,j).value+delta);
                 end
             end
         end
@@ -348,8 +432,16 @@ classdef floating_point
           %  - if obj is non-empty and b is non-zero then make sure storage
           %  formats of obj(1,1) and b match and throw an error. 
           
-          r=S.subs{1};
-          c=S.subs{2};
+          if length(S)==2
+              r=S.subs{1};
+          
+              c=S.subs{2};
+          elseif length(S)==1
+              r=1;
+              c=S.subs{1};
+          else
+              fprintf(2,'This style of subscripting assignment not supported.\n');
+          end
           
           if numel(obj)==1 && r==1 && c==1 && isa(b,'floating_point')
               OBJ(1,1)=b;
