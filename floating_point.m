@@ -382,6 +382,19 @@ classdef floating_point
             end
         end
         
+        function N=prev(obj)
+            for i=1:size(obj,1)
+                for j=1:size(obj,2)
+                    delta=obj(i,j).base^(obj(i,j).exponent-obj(i,j).num_digits+1);
+                    N(i,j)=floating_point(obj(i,j).base,obj(i,j).num_digits,obj(i,j).min_exp,obj(i,j).max_exp,obj(i,j).value-delta);
+                end
+            end
+        end
+        
+        function D=delta(obj)
+            D=obj.next().value()-obj.value();
+        end
+        
         
         
         %Coerce A and B to be the same type of floating point number if
