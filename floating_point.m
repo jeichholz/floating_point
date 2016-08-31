@@ -433,70 +433,122 @@ classdef floating_point
         end
         
         function OBJ=subsasgn(obj,S,b)
-        
-          %A matrix should only store things in one storage format. 
-          %We take care to check that here.
-          %RULES:
-          %  - if obj is empty then we go ahead and assign, filling in with
-          %zeros if need be. 
-          %  - if obj is non-empty and b is zero then we convert b to the
-          %  storage format of obj (1,1), since all non-empty matrices are
-          %  of same type. 
-          %  - if obj is non-empty and b is non-zero then make sure storage
-          %  formats of obj(1,1) and b match and throw an error. 
-          
-          if length(S)==2
-              r=S.subs{1};
-          
-              c=S.subs{2};
-          elseif length(S)==1
-              r=1;
-              c=S.subs{1};
-          else
-              fprintf(2,'This style of subscripting assignment not supported.\n');
-          end
-          
-          if numel(obj)==1 && r==1 && c==1 && isa(b,'floating_point')
-              OBJ(1,1)=b;
-              return;
-          end
-          
-          if isempty(obj)
-              fprintf(2,'I did not expect it was possible to have an empty floating point.\n');
-              return;
-          else
-              if ~isa(b,'floating_point')
-                  b=floating_point(obj(1,1).base,obj(1,1).num_digits,obj(1,1).min_exp,obj(1,1).max_exp,b);
-              elseif b.value == 0
-                  b=floating_point(obj(1,1).base,obj(1,1).num_digits,obj(1,1).min_exp,obj(1,1).max_exp,0);
-              else
-                  if b.base ~= obj(1,1).base || b.num_digits ~= obj(1,1).num_digits || b.min_exp ~= obj(1,1).min_exp || b.max_exp ~= obj(1,1).max_exp
-                      fprintf(2,'You may not store numbers of multiple types in one matrix\n');
-                      return;
-                  end
-              end
-          end
-          
-          %At this point either b matches obj(1,1) in type, or obj is
-          %empty.  Either way, b has the right type.  Fill in
-          OBJ=obj;
-          oldOBJsize=size(OBJ);
-          for i=oldOBJsize(1)+1:r
-              for j=1:c
-                  OBJ(i,j)=floating_point(b.base,b.num_digits,b.min_exp,b.max_exp,0);
-              end
-          end
-          for j=oldOBJsize(2)+1:c
-              for i=1:r
-                  OBJ(i,j)=floating_point(b.base,b.num_digits,b.min_exp,b.max_exp,0);
-              end
-          end
+            
+            %A matrix should only store things in one storage format.
+            %We take care to check that here.
+            %RULES:
+            %  - if obj is empty then we go ahead and assign, filling in with
+            %zeros if need be.
+            %  - if obj is non-empty and b is zero then we convert b to the
+            %  storage format of obj (1,1), since all non-empty matrices are
+            %  of same type.
+            %  - if obj is non-empty and b is non-zero then make sure storage
+            %  formats of obj(1,1) and b match and throw an error.
+            
+            
+            %It is OK to change the type of the matrix if there is exactly one
+            %element in it to start with.
+            
+            
+            do_size_check=1;
+            
+            if numel(obj)==1 && S.subs{1}==1 && isa(b,'floating_point')
+                OBJ(1,1)=b;
+                return;
 
-          OBJ(r,c)=b;
-          
-                      
- 
-
+            
+            %Otherwise, first figure out what indices we are assigning into.
+            %THIS DIFFERS FROM TRADITIONAL MATLAB INDEXING. 
+            %INDEXING with A(:,:)=B will completely reshape A to be the size of B.
+            %Typically, if A is not already the correct shape then this
+            %will fail.
+            elseif length(S.subs)==2 && ischar(S.subs{1}) && strcmp(S.subs{1},':')... 
+                                     && ischar(S.subs{2}) && strcmp(S.subs{2},':')
+               OBJ=floating_point(obj(1,1).base,obj(1,1).num_digits,obj(1,1).min_exp,obj(1,1).max_exp);
+               R=1:size(b,1);
+               C=1:size(b,2);
+               do_size_check=0;
+               
+            %In this case just normal 2D indexing.
+            elseif length(S.subs)==2
+                OBJ=obj;
+                if ischar(S.subs{1}) && strcmp(S.subs{1},':')
+                    R=1:size(OBJ,1);
+                else
+                    R=S.subs{1};
+                end
+                if ischar(S.subs{2}) && strcmp(S.subs{2},':')
+                    C=1:size(OBJ,2);
+                else
+                    C=S.subs{2};
+                end
+            elseif length(S.subs)==1
+                OBJ=obj;
+                if ischar(S.subs{1}) && strcmp(S.subs{1},':')
+                    [R,C]=ind2sub(size(OBJ),1:numel(OBJ));
+                else
+                    [R,C]=ind2sub(size(OBJ),S.subs{1});
+                end
+            else
+                fprintf(2,'Only one- and two-dimensional subscripting is supported.');
+            end
+            
+            if numel(b)==1
+                b=repmat(b,length(R),length(C));
+            end
+            
+            if length(R)*length(C) ~= numel(b)
+                fprintf(2,'Trying to assign %d elements into %d spots.\n',numel(b),length(R)*length(C));
+                return;
+            end
+            
+            
+            ASSIGNEE=0;
+            for ridx=1:length(R)
+                for cidx=1:length(C)
+                    r=R(ridx);
+                    c=C(cidx);
+                    if isempty(obj)
+                        fprintf(2,'I did not expect it was possible to have an empty floating point.\n');
+                        return;
+                    else
+                        if ~isa(b(ridx,cidx),'floating_point')
+                            ASSIGNEE=floating_point(obj(1,1).base,obj(1,1).num_digits,obj(1,1).min_exp,obj(1,1).max_exp,b(ridx,cidx));
+                        elseif b(ridx,cidx).value == 0
+                            ASSIGNEE=floating_point(obj(1,1).base,obj(1,1).num_digits,obj(1,1).min_exp,obj(1,1).max_exp,0);
+                        else
+                            if b(ridx,cidx).base ~= obj(1,1).base || b(ridx,cidx).num_digits ~= obj(1,1).num_digits || b(ridx,cidx).min_exp ~= obj(1,1).min_exp || b(ridx,cidx).max_exp ~= obj(1,1).max_exp
+                                fprintf(2,'You may not store numbers of multiple types in one matrix\n');
+                                return;
+                            else
+                                ASSIGNEE=b(ridx,cidx);
+                            end
+                        end
+                    end
+                    
+                    %At this point either ASSIGNEE matches obj(1,1) in type, or obj is
+                    %empty.  Either way, b has the right type.  Fill in
+                    oldOBJsize=size(OBJ);
+                    for i=oldOBJsize(1)+1:r
+                        for j=1:c
+                            OBJ(i,j)=floating_point(ASSIGNEE.base,ASSIGNEE.num_digits,...
+                                     ASSIGNEE.min_exp,ASSIGNEE.max_exp,0);
+                        end
+                    end
+                    for j=oldOBJsize(2)+1:c
+                        for i=1:r
+                            OBJ(i,j)=floating_point(ASSIGNEE.base,ASSIGNEE.num_digits,...
+                                ASSIGNEE.min_exp,ASSIGNEE.max_exp,0);
+                        end
+                    end
+                    
+                    OBJ(r,c)=ASSIGNEE;
+                    
+                end
+            end
+            
+            
+            
         end
     end
     
