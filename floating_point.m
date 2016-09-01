@@ -78,33 +78,35 @@ classdef floating_point
             
             for i=1:size(x,1)
                 for j=1:size(x,2)
+                    y=x(i,j);
                     obj(i,j).base=base;
                     obj(i,j).num_digits=num_digits;
                     obj(i,j).min_exp=min_exp;
                     obj(i,j).max_exp=max_exp;
-                    if x(i,j)==0
+                    if y==0
                         obj(i,j).sign=1;
                         obj(i,j).exponent=obj(i,j).min_exp;
                         obj(i,j).value=sym(0);
                     else
-                        if x(i,j)>0
+                        if y>0
                             obj(i,j).sign=1;
                         else
                             obj(i,j).sign=-1;
-                            x(i,j)=-x(i,j);
+                            y=-y;
                         end
-                        obj(i,j).exponent=floor(log(x(i,j))/log(obj(i,j).base));
+                        obj(i,j).exponent=floor(log(y)/log(obj(i,j).base));
                         sme=obj(i,j).exponent-obj(i,j).num_digits+1;
                         
                         %Round here
                         %if (abs(x(i,j)-floor(x(i,j)/obj(i,j).base^sme)*obj(i,j).base^sme)>abs(x(i,j)-ceil(x(i,j)/obj(i,j).base^sme)*obj(i,j).base^sme))
-                        if x(i,j)-floor(x(i,j)/obj(i,j).base^sme)*obj(i,j).base^sme>=1/2*obj(i,j).base^sme
-                            x(i,j)=x(i,j)+obj(i,j).base^sme;
+                        base_to_smallest_pow=obj(i,j).base^sme;
+                        if y-floor(y/base_to_smallest_pow)*base_to_smallest_pow>=1/2*base_to_smallest_pow
+                            y=y+obj(i,j).base^sme;
                         end
                         %You rounded, re-evaluate the exponent
-                        obj(i,j).exponent=floor(log(x(i,j))/log(obj(i,j).base));
+                        obj(i,j).exponent=floor(log(y)/log(obj(i,j).base));
                         sme=obj(i,j).exponent-obj(i,j).num_digits+1;                        
-                        obj(i,j).value=floor(x(i,j)/obj(i,j).base^sme)*obj(i,j).base^sme;  
+                        obj(i,j).value=floor(y/obj(i,j).base^sme)*obj(i,j).base^sme;  
                         
                         %Overflow or underflow here
                         if obj(i,j).exponent>obj(i,j).max_exp
