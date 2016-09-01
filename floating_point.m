@@ -20,7 +20,6 @@ classdef floating_point
         min_exp=-5;
         max_exp=5;
         value=sym(-Inf);
-        sign=0;
     end
     
     methods
@@ -84,16 +83,18 @@ classdef floating_point
                     obj(i,j).min_exp=min_exp;
                     obj(i,j).max_exp=max_exp;
                     if y==0
-                        obj(i,j).sign=1;
                         obj(i,j).exponent=obj(i,j).min_exp;
                         obj(i,j).value=sym(0);
                     else
-                        if y>0
-                            obj(i,j).sign=1;
-                        else
-                            obj(i,j).sign=-1;
+
+
+                        
+                        was_y_neg=0;
+                        if y<0
                             y=-y;
+                            was_y_neg=1;
                         end
+                        
                         obj(i,j).exponent=floor(log(y)/log(obj(i,j).base));
                         sme=obj(i,j).exponent-obj(i,j).num_digits+1;
                         
@@ -107,6 +108,10 @@ classdef floating_point
                         obj(i,j).exponent=floor(log(y)/log(obj(i,j).base));
                         sme=obj(i,j).exponent-obj(i,j).num_digits+1;                        
                         obj(i,j).value=floor(y/obj(i,j).base^sme)*obj(i,j).base^sme;  
+                        
+                        if was_y_neg
+                            obj(i,j).value=-obj(i,j).value;
+                        end
                         
                         %Overflow or underflow here
                         if obj(i,j).exponent>obj(i,j).max_exp
@@ -134,7 +139,9 @@ classdef floating_point
                 dig=Inf*ones(1,obj.num_digits);
             else
                 min_exp=obj.exponent-obj.num_digits+1;
-                
+                if obj.value<0
+                    obj.value=-obj.value;
+                end
                 dig(1)=floor(obj.value/obj.base^min_exp);
                 for i=1:obj.num_digits
                     if (dig(i)>=obj.base)
@@ -178,13 +185,13 @@ classdef floating_point
             for i=1:size(x,1)
                 for j=1:size(x,2)
                     z=x(i,j);
-                    if z.sign==1
+                    if z.value>=0
                         s='+';
                     else
                         s='-';
                     end
                     if fp_disp_repr
-                        fprintf(repr_fmt_spec,s,z.digits, z.base, z.exponent);
+                        fprintf(repr_fmt_spec,s,z.digits(), z.base, z.exponent);
                     end
                     if fp_disp_val
                         fprintf(val_fmt_spec,double(z.value));
@@ -219,6 +226,21 @@ classdef floating_point
                 for j=1:size(A,2)
                    [a,b]=coerce_operands(A(i,j),B(i,j),'-');
                     obj(i,j)=floating_point(a.base,a.num_digits,a.min_exp,a.max_exp,a.value-b.value);
+                end
+            end
+        end
+        
+        
+        %Multiply.  Elementwise multiplication
+        function obj=times(A,B)
+            if ~all(size(A)==size(B))
+                fprintf(2,'Operand dimensions must agree.\n');
+                return;
+            end
+            for i=1:size(A,1)
+                for j=1:size(B,2)
+                    [a,b]=coerce_operands(A(i,j),B(i,j),'*');
+                    obj(i,j)=floating_point(a.base,a.num_digits,a.min_exp,a.max_exp,a.value*b.value);
                 end
             end
         end
@@ -263,17 +285,20 @@ classdef floating_point
             
         end
         
-        %Perform B.\A.  Only supports B a scalar
+        %Perform B.\A.  
         function obj=ldivide(B,A)
-            if numel(B)>1
-                fprintf('Only division by scalars is supported for floating_points\n');
-            end
-            if ~isa(B,'floating_point')
-                B=floating_point(A(1,1).base,A(1,1).num_digits,A(1,1).min_exp,A(1,1).max_exp,B);
+            if numel(B)==1
+                obj=B\A;
+                return;
+            else
+                if ~all(size(A)==size(B))
+                    fprintf(2,'Elementwise division requires operands of same size.\n');
+                    return;
+                end
             end
             for i=1:size(A,1)
                 for j=1:size(A,2)
-                    [a,b]=coerce_operands(A(i,j),B,'\');
+                    [a,b]=coerce_operands(A(i,j),B(i,j),'\');
                     obj(i,j)=floating_point(a.base,a.num_digits,a.min_exp,a.max_exp,a.value/b.value);
                 end
             end
@@ -297,18 +322,21 @@ classdef floating_point
 
         
         
-        %Perform A./B.  Only supports B a scalar
+        %Perform A./B.  
         function obj=rdivide(A,B)
-            if numel(B)>1
-                fprintf('Only division by scalars is supported for floating_points\n');
-            end
-            if ~isa(B,'floating_point')
-                B=floating_point(A(1,1).base,A(1,1).num_digits,A(1,1).min_exp,A(1,1).max_exp,B);
-            end
-            for i=1:size(A,1)
-                for j=1:size(A,2)
-                    [a,b]=coerce_operands(A(i,j),B,'\');
-                    obj(i,j)=floating_point(a.base,a.num_digits,a.min_exp,a.max_exp,a.value/b.value);
+            if numel(B)==1
+                obj=A/B;
+                return;
+            else
+                if ~all(size(A)==size(B))
+                    fprintf(2,'Elementwise division requires operands of consistent size.\n');
+                    return;
+                end
+                for i=1:size(A,1)
+                    for j=1:size(A,2)
+                        [a,b]=coerce_operands(A(i,j),B(i,j),'\');
+                       obj(i,j)=floating_point(a.base,a.num_digits,a.min_exp,a.max_exp,a.value/b.value);
+                    end
                 end
             end
         end
@@ -374,7 +402,6 @@ classdef floating_point
                 for j=1:size(A,2)
                     obj(i,j)=A(i,j);
                     obj(i,j).value=-obj(i,j).value;
-                    obj(i,j).sign=-obj(i,j).sign;
                 end
             end
             
@@ -401,20 +428,79 @@ classdef floating_point
         
         %absolute value
         function a=abs(obj)
-            a=obj;
+            a=apply_func(@abs,obj);
+        end
+
+        %sin
+        function a=sin(obj)
+            a=apply_func(@sin, obj);
+        end
+
+        %cos
+        function a=cos(obj)
+            a=apply_func(@cos, obj);
+        end
+
+        %tan
+        function a=tan(obj)
+            a=apply_func(@tan, obj);
+        end
+        
+
+        %csc
+        function a=csc(obj)
+            a=apply_func(@csc, obj);
+        end
+
+        %sec
+        function a=sec(obj)
+            a=apply_func(@sec, obj);
+        end
+        
+        %acos
+        function a=acos(obj)
+            a=apply_func(@acos, obj);
+        end
+        
+        %asin
+        function a=asin(obj)
+            a=apply_func(@asin, obj);
+        end
+        
+        %atan
+        function a=atan(obj)
+            a=apply_func(@atan, obj);
+        end
+        
+        
+        
+        
+        
+        
+        
+        function A=apply_func(f,obj)
+            b=obj(1,1).base;
+            n=obj(1,1).num_digits;
+            m=obj(1,1).min_exp;
+            M=obj(1,1).max_exp;
             for i=1:size(obj,1)
-                for j=1:size(obj,2)
-                    a(i,j).value=abs(a(i,j).value);
-                    a(i,j).sign=1;
+                for j=1:size(obj,2);
+                    A(i,j)=floating_point(b,n,m,M,f(obj(i,j).value));
                 end
             end
         end
+        
+       
         
         
         function N=next(obj)
             for i=1:size(obj,1)
                 for j=1:size(obj,2)
-                    delta=obj(i,j).base^(obj(i,j).exponent-obj(i,j).num_digits+1);
+                    if obj(i,j).value==0
+                        delta=obj(i,j).base^obj(i,j).min_exp;
+                    else
+                        delta=obj(i,j).base^(obj(i,j).exponent-obj(i,j).num_digits+1);
+                    end
                     N(i,j)=floating_point(obj(i,j).base,obj(i,j).num_digits,obj(i,j).min_exp,obj(i,j).max_exp,obj(i,j).value+delta);
                 end
             end
@@ -423,7 +509,11 @@ classdef floating_point
         function N=prev(obj)
             for i=1:size(obj,1)
                 for j=1:size(obj,2)
-                    delta=obj(i,j).base^(obj(i,j).exponent-obj(i,j).num_digits+1);
+                    if obj(i,j).value==0
+                        delta=obj(i,j).base^obj(i,j).min_exp;
+                    else
+                        delta=obj(i,j).base^(obj(i,j).exponent-obj(i,j).num_digits+1);
+                    end
                     N(i,j)=floating_point(obj(i,j).base,obj(i,j).num_digits,obj(i,j).min_exp,obj(i,j).max_exp,obj(i,j).value-delta);
                 end
             end
@@ -505,7 +595,8 @@ classdef floating_point
             else
                %If A is 1x1 and b is a floating point, don't try to coerce b, just 
                %do it.
-               if numel(obj)==1 && isa(b,'floating_point') && numel(b)==1
+               if numel(obj)==1 && isa(b,'floating_point') && numel(b)==1 ...
+                                && S.subs{1}==1 && S.subs{2}==1
                    OBJ=b;
                    return;
                end
