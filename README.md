@@ -261,3 +261,48 @@ ans =
 (base 2)
 +1.0010 x 2^-5 (APPROX: 0.035156)
 ```
+
+** Display
+By setting the global variables fp_disp_repr, fp_disp_val, and fp_disp_base we can control the formatting of floating_point variables somewhat.
+
+```
+>> M
+
+M = 
+
+(base 10)
++1.00 x 10^0 (APPROX: 1.000000) -2.00 x 10^0 (APPROX: -2.000000) -4.00 x 10^2 (APPROX: -400.000000) +1.00 x 10^0 (APPROX: 1.000000) 
++0.00 x 10^-10 (APPROX: 0.000000) +1.00 x 10^0 (APPROX: 1.000000) +2.68 x 10^4 (APPROX: 26800.000000) +2.67 x 10^2 (APPROX: 267.000000) 
++0.00 x 10^-10 (APPROX: 0.000000) +0.00 x 10^-10 (APPROX: 0.000000) -1.96 x 10^7 (APPROX: -19600000.000000) -1.94 x 10^5 (APPROX: -194000.000000) 
+>> global fp_disp_repr
+>> fp_disp_repr=0;
+>> M
+
+M = 
+
+(base 10)
+1 -2 -400 1 
+0 1 26800 267 
+0 0 -1.96e+07 -194000 
+>> global fp_disp_base
+>> fp_disp_base=0;
+>> M
+
+M = 
+
+1 -2 -400 1 
+0 1 26800 267 
+0 0 -1.96e+07 -194000 
+>> global fp_disp_val
+>> fp_disp_val=0;
+
+>> fp_disp_repr=1;
+>> M
+
+M = 
+
++1.00 x 10^0 -2.00 x 10^0 -4.00 x 10^2 +1.00 x 10^0 
++0.00 x 10^-10 +1.00 x 10^0 +2.68 x 10^4 +2.67 x 10^2 
++0.00 x 10^-10 +0.00 x 10^-10 -1.96 x 10^7 -1.94 x 10^5
+
+```

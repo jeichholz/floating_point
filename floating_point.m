@@ -115,7 +115,7 @@ classdef floating_point
                         
                         %Overflow or underflow here
                         if obj(i,j).exponent>obj(i,j).max_exp
-                            if obj(i,j).sign==1
+                            if obj(i,j).value>0
                                 obj(i,j).value=Inf;
                             else
                                 obj(i,j).value=-Inf;
@@ -520,7 +520,13 @@ classdef floating_point
         end
         
         function D=delta(obj)
-            D=obj.next().value()-obj.value();
+            D=sym(zeros(size(obj)));
+            N=obj.next();
+            for i=1:size(obj,1)
+                for j=1:size(obj,2)
+                    D(i,j)=N(i,j).value()-obj(i,j).value();
+                end
+            end
         end
         
         
