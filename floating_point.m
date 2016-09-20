@@ -177,7 +177,7 @@ classdef floating_point
             global fp_disp_val;
             if fp_disp_val
                 if ~fp_disp_repr
-                    val_fmt_spec='%g';
+                    val_fmt_spec=['%' num2str(x(1,1).num_digits+5) 'g'];
                 else
                     val_fmt_spec=' (APPROX: %5f)';
                 end
@@ -473,7 +473,10 @@ classdef floating_point
         end
         
         
-        
+        function TF=eq(obj,x)
+           [A,B]=coerce_operands(obj,x,'==');
+           TF=A.value==B.value;
+        end
         
         
         
