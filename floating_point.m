@@ -475,11 +475,30 @@ classdef floating_point
         
         function TF=eq(obj,x)
            [A,B]=coerce_operands(obj,x,'==');
-           TF=A.value==B.value;
+           TF=isequal(A.value,B.value);
         end
         
+         function TF=lt(obj,x)
+           [A,B]=coerce_operands(obj,x,'<');
+           TF=double(sign(A.value-B.value))==-1;
+         end   
+         
+         function TF=le(obj,x)
+           [A,B]=coerce_operands(obj,x,'<e');
+           TF=double(sign(A.value-B.value))<1;
+         end   
+         
+         
         
+         function TF=gt(obj,x)
+           [A,B]=coerce_operands(obj,x,'>');
+           TF=double(sign(A.value-B.value))==1;
+         end       
         
+         function TF=ge(obj,x)
+           [A,B]=coerce_operands(obj,x,'>=');
+           TF=double(sign(A.value-B.value))>-1;
+         end       
         
         function A=apply_func(f,obj)
             b=obj(1,1).base;
