@@ -500,6 +500,27 @@ classdef floating_point
            TF=double(sign(A.value-B.value))>-1;
          end       
         
+         function M=max(obj)
+             if size(obj,1)==1
+                 M=obj(1,1);
+                 for j=1:size(obj,2)
+                     if obj(1,j)>M
+                         M=obj(1,j);
+                     end
+                 end
+             else
+                 
+                 for j=1:size(obj,2)
+                     M(1,j)=obj(1,j);
+                     for i=2:size(obj,1)
+                         if obj(i,j)>M(1,j)
+                             M(1,j)=obj(i,j);
+                         end
+                     end
+                 end
+             end
+         end
+         
         function A=apply_func(f,obj)
             b=obj(1,1).base;
             n=obj(1,1).num_digits;
