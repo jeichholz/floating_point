@@ -499,26 +499,47 @@ classdef floating_point
            [A,B]=coerce_operands(obj,x,'>=');
            TF=double(sign(A.value-B.value))>-1;
          end       
-        
-         function M=max(obj)
-             if size(obj,1)==1
-                 M=obj(1,1);
-                 for j=1:size(obj,2)
-                     if obj(1,j)>M
-                         M=obj(1,j);
-                     end
+
+         %Return max.  Does not support all the options of the default max.
+         %
+         function [M,I]=max(A,dim)
+             if ~exist('dim','var') || isempty(dim)
+                 if size(A,1)==1
+                     dim=2;
+                 else
+                     dim=1;
                  end
-             else
-                 
-                 for j=1:size(obj,2)
-                     M(1,j)=obj(1,j);
-                     for i=2:size(obj,1)
-                         if obj(i,j)>M(1,j)
-                             M(1,j)=obj(i,j);
+             end
+             
+             if dim==1
+                 for j=1:size(A,2)
+                     M(j)=A(1,j);
+                     I(j)=1;
+                     for i=1:size(A,1)
+                         if A(i,j)>M(j)
+                            M(j)=A(i,j);
+                            I(j)=i;
                          end
                      end
                  end
+             else
+                 [M,I]=max(A',1);
+                 M=M';
+                 I=I';
              end
+             
+         end
+         
+         function [M,I]=min(A,dim)
+             if ~exist('dim','var') || isempty(dim)
+                 if size(A,1)==1
+                     dim=2;
+                 else
+                     dim=1;
+                 end
+             end
+             [M,I]=max(-A,dim);
+             M=-M;
          end
          
         function A=apply_func(f,obj)
